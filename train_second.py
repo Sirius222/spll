@@ -27,16 +27,30 @@ import torch.nn.functional as F
 
 
 
+
+# def log_params(conf: OrderedDict, parent_key: str = None):
+#     for key, value in conf.items():
+#         if parent_key is not None:
+#             combined_key = f'{parent_key}-{key}'
+#         else:
+#             combined_key = key
+
+#         if not isinstance(value, OrderedDict):
+#             mlflow.log_param(combined_key, value)
+#         else:
+#             log_params(value, combined_key)
+
+
 def main(config: ConfigParser):
     tb_logger = tb.Logger(logdir=config.tb_logger, flush_secs=2)
     logger = config.get_logger('train')
 
-    model = config.initialize('arch', module_arch)
-    # model = None
-    ens_example_loss, ens_prediction, train_labels = sop_train(config=config, model=model, logger=logger, tb_logger=tb_logger)
-    # ens_example_loss, ens_prediction, train_labels = None, None, None
+    # model = config.initialize('arch', module_arch)
+    model = None
+    # ens_example_loss, ens_prediction, train_labels = sop_train(config=config, model=model, logger=logger, tb_logger=tb_logger)
+    ens_example_loss, ens_prediction, train_labels = None, None, None
 
-    dpll(config=config, logger=logger,model=model, ens_example_loss=ens_example_loss, ens_prediction=ens_prediction, train_labels=train_labels)
+    dpll(config=config, logger=logger,model=model, ens_example_loss=ens_example_loss, ens_prediction=ens_prediction, train_labels=train_labels, tb_logger=tb_logger)
 
 
 
@@ -113,7 +127,7 @@ def sop_train(config=None, model=None, logger=None, tb_logger=None):
     np.save(config.pll_label/'noise_or_not', noise_or_not)
     return trainer.ens_example_loss, trainer.ens_prediction, data_loader.train_dataset.train_labels
 
-def dpll(config=None, logger=None,model=None, ens_example_loss=None, ens_prediction=None, train_labels=None):
+def dpll(config=None, logger=None,model=None, ens_example_loss=None, ens_prediction=None, train_labels=None, tb_logger=None):
     if config['data_loader']['type'] == 'CIFAR10DataLoader':
         sup_idx, pll_idx, pll_label = generate_idx(config, ens_example_loss, ens_prediction, train_labels=train_labels)
         sup_train_loader, pll_train_loader, test = dataset.mycifar10_dataloaders(config['data_loader']['args']['data_dir'],rate=0.4, sup_index=sup_idx, pll_index=pll_idx, pll_label=pll_label)
@@ -123,7 +137,6 @@ def dpll(config=None, logger=None,model=None, ens_example_loss=None, ens_predict
 
     if model is None:
         model = WideResNet(34, config['classes'], widen_factor=10, dropRate=0.0)
-        # model = torch.nn.DataParallel(model)
 
 
     model = model.cuda()
@@ -159,9 +172,10 @@ def dpll(config=None, logger=None,model=None, ens_example_loss=None, ens_predict
             "valloss": valloss
         }
         for key, value in log.items():
-                logger.info('    {:15s}: {}'.format(str(key), value))
-        
-        logger.info('best acc is ', best_acc)
+            logger.info('    {:15s}: {}'.format(str(key), value))
+        tb_logger.log_value("val loss", valloss, epoch)
+        tb_logger.log_value("val acc", valacc, epoch)
+    logger.info('best acc is ', best_acc)
 
 
 
@@ -244,7 +258,7 @@ def generate_idx(config=None, ens_example_loss=None, ens_prediction=None, train_
     if ens_example_loss is None or ens_prediction is None or train_labels is None:
         ens_example_loss = np.load('./data/worse_label/loss.npy')
         ens_prediction = np.load('./data/worse_label/prediction.npy')
-        train_labels = torch.load('/home/sirius/ght/LMNL-2022/task-classification/spll/data/CIFAR-10_human.pt')
+        train_labels = torch.load('./data/CIFAR-10_human.pt')
         train_labels = train_labels['worse_label']
     topk = config['topk']
     ens = config['ensemble']
