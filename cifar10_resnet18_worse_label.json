@@ -1,5 +1,5 @@
 {
-    "name": "cifar10_PreActResNet18_worse_",
+    "name": "clean_train_mixup_aug_ema",
     "n_gpu": 1,
     "seed": 666,
     "samples": 50000,
@@ -44,7 +44,7 @@
     "data_loader": {
         "type": "CIFAR10DataLoader",
         "args":{
-            "data_dir": "/home/sirius/ght/spll/data",
+            "data_dir": "./data",
             "batch_size": 128,
             "shuffle": true,
             "num_batches": 0,

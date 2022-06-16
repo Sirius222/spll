@@ -45,6 +45,8 @@ def get_cifar100(root, cfg_trainer, train=True,
 
         # print(f"Train: {len(train_dataset)} ")  # Train: 50000 Val: 0
         print(f"Train: {len(train_dataset)} Val: {len(val_dataset)}")  # Train: 50000 Val: 0
+        val_dataset.noise_or_not = np.transpose(val_dataset.train_labels)==np.transpose(val_dataset.train_labels_gt)
+        train_dataset.noise_or_not = np.transpose(train_dataset.train_labels)==np.transpose(train_dataset.train_labels_gt)
     else:
         train_dataset = []
         val_dataset = CIFAR100_val(root, cfg_trainer, None, train=train, transform=transform_val)
@@ -66,7 +68,7 @@ def cifar100n(root, key, download = False):
         if download:
             download_cifarn(root)
         else:
-            raise FileNotFoundError(f'Labels not found. Please set download=True. Path: {data_path}')
+            raise FileNotFoundError(f'Labels not found. Please set download=True. Path: {label_path}')
     noise_label = torch.load(label_path)
     targets_new = torch.from_numpy(noise_label[key])
     return targets_new
@@ -113,6 +115,8 @@ class CIFAR100_train(torchvision.datasets.CIFAR100):
         self.count = 0
 
         self.train_labels_gt = self.train_labels.copy()
+        self.noise_or_not = None
+
 
     def symmetric_noise(self):
         
@@ -245,6 +249,8 @@ class CIFAR100_val(torchvision.datasets.CIFAR100):
             self.train_labels = np.array(self.targets)
         self.train_labels_gt = self.train_labels.copy()
         self.indexs = indexs
+        self.noise_or_not = None
+
     def symmetric_noise(self):
         indices = np.random.permutation(len(self.train_data))
         for i, idx in enumerate(indices):
